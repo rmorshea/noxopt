@@ -3,9 +3,10 @@
 Note:
     We avoid using NoxOpt here just so dev commands will work even if there are bugs.
 """
-import nox
-from shutil import rmtree
 from pathlib import Path
+from shutil import rmtree
+
+import nox
 
 
 ROOT = Path(__file__).parent
