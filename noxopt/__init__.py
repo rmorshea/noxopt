@@ -7,14 +7,24 @@ from dataclasses import dataclass, fields, replace
 from inspect import Parameter, signature
 
 
-if sys.version_info < (3, 9):
-    from typing_extensions import Annotated, get_args, get_type_hints
+if sys.version_info < (3, 10):  # pragma: no cover
+    from typing_extensions import (
+        Annotated,
+        Concatenate,
+        ParamSpec,
+        get_args,
+        get_origin,
+        get_type_hints,
+    )
 else:
-    from typing import Annotated, get_args, get_type_hints
-if sys.version_info < (3, 10):
-    from typing_extensions import Concatenate, ParamSpec, get_origin
-else:
-    from typing import ParamSpec, Concatenate, get_origin
+    from typing import (
+        Annotated,
+        get_args,
+        get_type_hints,
+        ParamSpec,
+        Concatenate,
+        get_origin,
+    )
 
 from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
 
@@ -22,7 +32,7 @@ import nox
 from nox.sessions import Session
 
 
-__all__ = ["NoxOpt", "Option", "Session"]
+__all__ = ["NoxOpt", "Option", "Session", "Annotated"]
 
 
 if TYPE_CHECKING:
@@ -39,7 +49,9 @@ if TYPE_CHECKING:
 
 else:
     UNDEFINED = type("Undefined", (), {"__repr__": lambda self: "UNDEFINED"})()
-    copy_method_signature = lambda f: lambda g: g
+
+    def copy_method_signature(func):
+        return lambda f: f
 
 
 class NoxOpt:
@@ -104,9 +116,12 @@ class NoxOpt:
             ):
                 prefix_len = self._prefix.count("-") + 1 if self._prefix else 0
                 tag_parts = session_name.split("-")[
-                    prefix_len : self._auto_tag_depth + prefix_len + 1
+                    : self._auto_tag_depth + prefix_len + 1
                 ]
-                auto_tags = {"-".join(tag_parts[:i]) for i in range(1, len(tag_parts))}
+                auto_tags = {
+                    "-".join(tag_parts[:i])
+                    for i in range(1 + prefix_len, len(tag_parts))
+                }
                 # merge automatic tags with any provided by the user
                 kwargs["tags"] = list(set(kwargs.get("tags", set())) | auto_tags)
 
@@ -115,7 +130,7 @@ class NoxOpt:
                 own_params.add(param_name)
                 self._add_option_to_parser(option)
 
-            @nox.session(*args, name=session_name, **kwargs)  # type: ignore[call-overload]
+            @nox.session(*args, name=session_name, **kwargs)  # type: ignore[misc]
             @functools.wraps(func)
             def wrapper(session: Session) -> None:
                 args_dict = self._parser.parse_args(session.posargs).__dict__
@@ -133,7 +148,11 @@ class NoxOpt:
             if not existing:
                 self._options_by_flags[flag] = option
             elif existing != option:
-                raise ValueError(f"Session argument {flag} already exists")
+                raise ValueError(
+                    f"Conflicting session options:\n"
+                    f"new:      {option}\n"
+                    f"existing: {existing}"
+                )
             else:
                 already_exists = True
 
@@ -146,7 +165,7 @@ class Option:
     flags: Sequence[str] = UNDEFINED
     # remainder are alphabetical
     action: str | None = UNDEFINED
-    choices: Container = UNDEFINED
+    choices: Container[Any] = UNDEFINED
     const: Any = UNDEFINED
     default: Any | None = UNDEFINED
     dest: str = UNDEFINED
@@ -184,20 +203,12 @@ def _get_options_from_function(func: Callable[..., Any]) -> dict[str, Option]:
     for name, (default, annotation) in _get_function_defaults_and_annotations(
         func
     ).items():
-        opt = _get_annotated_option(annotation) or Option()
+        opt = _get_annotated_option(annotation)
 
         if default is not UNDEFINED:
             opt = replace(opt, default=default)
         else:
             opt = replace(opt, required=True)
-
-        true_annotation = get_args(annotation)
-        if opt.type is UNDEFINED:
-            if not callable(true_annotation):
-                raise TypeError(
-                    f"Type hint {annotation} must be Annotated with an Option"
-                )
-            opt = replace(opt, type=true_annotation)
 
         if opt.flags is UNDEFINED:
             opt = replace(opt, flags="--" + name.replace("_", "-"))
@@ -207,12 +218,17 @@ def _get_options_from_function(func: Callable[..., Any]) -> dict[str, Option]:
     return options
 
 
-def _get_annotated_option(annotation: Any) -> Option | None:
+def _get_annotated_option(annotation: Any) -> Option:
     if get_origin(annotation) is not Annotated:
-        return None
+        if not callable(annotation):
+            raise TypeError(
+                f"Type hint {annotation} must be callable or it should "
+                "be declared via Annotated[..., Option(...)] instead."
+            )
+        return Option(type=annotation)
     _, opt, *extra_args = get_args(annotation)
     if extra_args:
-        raise ValueError(f"{annotation} has extra metadata")
+        raise ValueError(f"{annotation} has extra metadata {extra_args}")
     if not isinstance(opt, Option):
         raise ValueError(f"{annotation} metadata must be an Option")
     return opt

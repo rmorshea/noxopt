@@ -37,3 +37,23 @@ ensure_newline_before_comments = "True"
 include_trailing_comma = "True"
 line_length = 88
 lines_after_imports = 2
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true
+sort = "Name"
+exclude_lines = [
+    # These are regex patterns
+    'pragma: no cover',
+    '\.\.\.',
+    'raise NotImplementedError',
+    'if TYPE_CHECKING[\s:]',
+]
+
+[tool.flake8]
+ignore = ["E203", "E266", "E501", "W503", "F811", "N802", "N806"]
+max-line-length = 88
+exclude = ["**/node_modules/*", ".eggs/*", ".nox/*"]
+# -- flake8-tidy-imports --
+ban-relative-imports = "true"

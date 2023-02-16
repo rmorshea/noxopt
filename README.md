@@ -101,17 +101,11 @@ nox = NoxOpt()
 Integers = Annotated[list[int], Option(nargs="*", type=int)]
 
 @nox.session
-def sum_numbers(
-    session: Session,
-    nums: Annotated[list[int], Option(nargs="*", type=int)],
-) -> None:
+def sum_numbers(session: Session, nums: Integers) -> None:
     session.log(sum(nums))
 
 @nox.session
-def multiply_numbers(
-    session: Session,
-    nums: Annotated[list[int], Option(nargs="*", type=int)],
-) -> None:
+def multiply_numbers(session: Session, nums: Integers) -> None:
     session.log(reduce(lambda x, y: x * y, nums, 0))
 ```
 
