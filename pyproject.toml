@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noxopt"
+version = "0.0.4"
 description = "Nox sessions with options"
 authors = [
     {name = "Ryan Morshead", email = "ryan.morshead@gmail.com"},
@@ -15,7 +16,6 @@ classifiers = [
     "Framework :: Django",
     "Programming Language :: Python :: 3",
 ]
-version = "0.0.3"
 dependencies = [
     "nox",
     'importlib-metadata; python_version<"3.8"',
