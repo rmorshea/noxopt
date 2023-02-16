@@ -4,13 +4,16 @@ import functools
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, fields, replace
-from importlib.metadata import version as get_lib_version
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
 
 import nox
 from nox.sessions import Session
 
+if sys.version_info < (3, 8):
+    from importlib_metadata import version as get_lib_version
+else:
+    from importlib.metadata import version as get_lib_version
 
 if sys.version_info < (3, 10):  # pragma: no cover
     from typing_extensions import (
