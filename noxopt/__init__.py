@@ -11,7 +11,7 @@ import nox
 from nox.sessions import Session
 
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 8):  # pragma: no cover
     from importlib_metadata import version as get_lib_version
 else:
     from importlib.metadata import version as get_lib_version
