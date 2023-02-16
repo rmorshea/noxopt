@@ -4,6 +4,11 @@ Note:
     We avoid using NoxOpt here just so dev commands will work even if there are bugs.
 """
 import nox
+from shutil import rmtree
+from pathlib import Path
+
+
+ROOT = Path(__file__).parent
 
 
 @nox.session(name="fix-format", tags=["fix"])
@@ -48,3 +53,17 @@ def check_types(session: nox.Session) -> None:
     session.run("mypy", "--version")
     session.run("mypy", "--show-error-codes", "--strict", "noxopt")
     session.run("mypy", "noxfile.py")
+
+
+@nox.session
+def build(session: nox.Session) -> None:
+    rmtree(str(ROOT / "build"))
+    rmtree(str(ROOT / "dist"))
+    session.install("build", "wheel")
+    session.run("python", "-m", "build", "--sdist", "--wheel", "--outdir", "dist", ".")
+
+
+@nox.session
+def release(session: nox.Session) -> None:
+    session.install("twine")
+    session.run("twine", "upload", "dist/*")
