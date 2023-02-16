@@ -1,6 +1,6 @@
 # NoxOpt
 
-Nox sessions with options!
+[Nox](https://github.com/wntrblm/nox) sessions with options!
 
 ## Installation
 
