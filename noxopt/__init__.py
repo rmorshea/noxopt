@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass, fields, replace
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
+from importlib.metadata import version as get_lib_version
 
 import nox
 from nox.sessions import Session
@@ -31,6 +32,7 @@ else:
     )
 
 
+__version__ = get_lib_version(__name__)
 __all__ = ["NoxOpt", "Option", "Session", "Annotated"]
 
 
