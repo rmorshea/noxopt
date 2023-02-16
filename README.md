@@ -112,67 +112,36 @@ def multiply_numbers(session: Session, nums: Integers) -> None:
 ## Automatic Tags
 
 An additional nicety of NoxOpt is that is can automatically create tags based on the
-names of your sessions using the `auto_tag_depth` parameter. The idea behind this
-parameter is that if you have a set of sessions with a common naming scheme - for example:
-
-- `check-python-tests`
-- `check-python-format`
-- `check-javascript-tests`
-- `check-javascript-format`
-
-One might find it useful to be able to run say, all the sessions begining with
-`check-python`. Thankfully if you set `NoxOpt(auto_tag_depth=2)`, NoxOpt will split
-every session name on `-` characters and generate tags based on the first two words in
-each. In this case, the set of tags would be:
-
-- `check`
-- `check-python`
-- `check-javascript`
-
-If you wish to disable this behavior in a given session you can set
-`NoxOpt.session(tags=None)` when defining it.
-
-## Using Multiple Nox Option Groups
-
-It may be useful to divide sessions into different `NoxOpt` groups. This could be
-because there a sessions that need to re-use the same parameter name, but with different
-option setting, or because you need more control over automatic tags. To do this, all
-you need to do is create two separate `NoxOpt` instances and add sessions to them.
-
-The example below uses two `NoxOpt` instance to generate the following tags:
-
-- `format`
-- `check`
-- `check-python`
-- `check-javascript`
+names of your sessions using the `NoxOpt(auto_tag=True)` parameter. The idea behind this
+parameter is that if you have a set of sessions with a common naming scheme like:
 
 ```python
 from noxopt import NoxOpt, Session
 
-formatters = NoxOpt(auto_tag_depth=1)
-checkers = NoxOpt(auto_tag_depth=2)
+nox = NoxOpt(auto_tag=True)
 
-@formatters.session
-def format_python(session: Session) -> None:
-    ...
-
-@formatters.session
-def format_javascript(session: Session) -> None:
-    ...
-
-@checkers.session
+@nox.session
 def check_python_tests(session: Session) -> None:
     ...
 
-@checkers.session
+@nox.session
 def check_python_format(session: Session) -> None:
     ...
 
-@checkers.session
+@nox.session
 def check_javascript_tests(session: Session) -> None:
     ...
 
-@checkers.session
+@nox.session
 def check_javascript_format(session: Session) -> None:
     ...
 ```
+
+NoxOpt will generate the following tags:
+
+- `check` - run sessions begining with `check`
+- `check-python` - run sessions begining with `check-python`
+- `check-javascript`- run sessions begining with `check-javascript`
+
+It does this by splitting every session name in the group on `-` characters and creating
+tags based on their common prefixes.
