@@ -6,7 +6,7 @@ on:
       nox-args:
         required: true
         type: string
-      session-arguments:
+      session-args:
         required: false
         type: string
       runs-on-array:
@@ -40,4 +40,4 @@ jobs:
         run: pip install nox
       - name: Run Tests
         env: { "CI": "true" }
-        run: nox ${{ inputs.nox-args }} --stop-on-first-error -- ${{ inputs.session-arguments }}
+        run: nox ${{ inputs.nox-args }} --stop-on-first-error -- ${{ inputs.session-args }}
