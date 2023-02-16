@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noxopt"
+description = "Nox sessions with options"
+authors = [
+    {name = "Ryan Morshead", email = "ryan.morshead@gmail.com"},
+]
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+]
+version = "0.0.1"
+dependencies = [
+    "nox",
+    'importlib-metadata; python_version<"3.8"',
+]
+
+[tool.mypy]
+incremental = false
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.isort]
+multi_line_output = 3
+force_grid_wrap = 0
+use_parentheses = "True"
+ensure_newline_before_comments = "True"
+include_trailing_comma = "True"
+line_length = 88
+lines_after_imports = 2
