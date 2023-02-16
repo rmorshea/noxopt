@@ -138,7 +138,7 @@ each. In this case, the set of tags would be:
 If you wish to disable this behavior in a given session you can set
 `NoxOpt.session(tags=None)` when defining it.
 
-# Using Multiple Nox Option Groups
+## Using Multiple Nox Option Groups
 
 It may be useful to divide sessions into different `NoxOpt` groups. This could be
 because there a sessions that need to re-use the same parameter name, but with different
