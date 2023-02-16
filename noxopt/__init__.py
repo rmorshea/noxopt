@@ -5,6 +5,10 @@ import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, fields, replace
 from inspect import Parameter, signature
+from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
+
+import nox
+from nox.sessions import Session
 
 
 if sys.version_info < (3, 10):  # pragma: no cover
@@ -19,23 +23,20 @@ if sys.version_info < (3, 10):  # pragma: no cover
 else:
     from typing import (
         Annotated,
-        get_args,
-        get_type_hints,
-        ParamSpec,
         Concatenate,
+        ParamSpec,
+        get_args,
         get_origin,
+        get_type_hints,
     )
-
-from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
-
-import nox
-from nox.sessions import Session
 
 
 __all__ = ["NoxOpt", "Option", "Session", "Annotated"]
 
 
 if TYPE_CHECKING:
+    from nox._decorators import Func
+
     UNDEFINED: Any
 
     F = TypeVar("F", bound=Callable[..., None])
@@ -86,14 +87,12 @@ class NoxOpt:
 
     def __init__(
         self,
-        prefix: str = "",
         parser: ArgumentParser | None = None,
-        auto_tag_depth: int = 0,
+        auto_tag: bool = False,
     ):
         self._parser = parser or ArgumentParser()
         self._options_by_flags: dict[str, Option] = {}
-        self._prefix = prefix
-        self._auto_tag_depth = auto_tag_depth
+        self._auto_tag = _AutoTag() if auto_tag else None
 
     @copy_method_signature(nox.session)
     def session(
@@ -105,25 +104,8 @@ class NoxOpt:
     ) -> Any:
         """Designate the decorated function as a session with command line arguments."""
 
-        def decorator(func: F) -> F:
+        def decorator(func: Any) -> Any:
             session_name = name or func.__name__.replace("_", "-")
-
-            if self._prefix:
-                session_name = f"{self._prefix}-{session_name}"
-
-            if self._auto_tag_depth and (
-                "tags" not in kwargs or kwargs["tags"] is not None
-            ):
-                prefix_len = self._prefix.count("-") + 1 if self._prefix else 0
-                tag_parts = session_name.split("-")[
-                    : self._auto_tag_depth + prefix_len + 1
-                ]
-                auto_tags = {
-                    "-".join(tag_parts[:i])
-                    for i in range(1 + prefix_len, len(tag_parts))
-                }
-                # merge automatic tags with any provided by the user
-                kwargs["tags"] = list(set(kwargs.get("tags", set())) | auto_tags)
 
             own_params: set[str] = set()
             for param_name, option in _get_options_from_function(func).items():
@@ -136,7 +118,10 @@ class NoxOpt:
                 args_dict = self._parser.parse_args(session.posargs).__dict__
                 func(session, **{k: v for k, v in args_dict.items() if k in own_params})
 
-            return func
+            if self._auto_tag:
+                self._auto_tag.add_func(session_name, wrapper)
+
+            return wrapper
 
         return decorator if func is None else decorator(func)
 
@@ -255,3 +240,92 @@ def _get_function_defaults_and_annotations(
         )
         for param in parameters
     }
+
+
+class _AutoTag:
+    r"""Session auto tagging utility
+
+    Construct a graph of words, and at every branching point in the graph it creates a
+    tag. For example the session names:
+
+    - `a-x-1`
+    - `a-x-2`
+    - `a-y-1`
+    - `a-y-2`
+    - `b-x-1`
+    - `b-x-2`
+
+    Would create the graph:
+
+    ```
+          *
+         / \
+        a   b
+       /\    \
+      x  y    x
+     /|  |\   |\
+    1 2  1 2  1 2
+    ```
+
+    At every branching point in the graph a tag would be generated and applied to all
+    functions with that prefix. So the tags would be:
+
+    - `a`
+    - `a-x`
+    - `a-y`
+    - `b`
+    - `b-x`
+    """
+
+    def __init__(self, sep: str = "-"):
+        self._sep = sep
+        self._tag_tree = _TagNode()
+
+    def add_func(self, name: str, func: Func) -> None:
+        node = self._tag_tree
+
+        # each branching point in the graph represents a tag
+        for word in name.split(self._sep):
+            if word in node.children:
+                # this is a branching point in the graph
+                if len(node.children) > 1:
+                    node.add_tag(func)
+                node = node.children[word]
+            else:
+                if len(node.children) == 1:
+                    node.add_tag(func)
+                    # We're about to create a new branching point - funcs added earlier
+                    # will not have this nodes tag.
+                    node.retroactively_add_tags()
+                node = node.add_node(word, self._sep)
+
+        # add this func to the last node
+        node.add_func(func)
+
+
+class _TagNode:
+    def __init__(self, parent: _TagNode | None = None, tag: str | None = None):
+        self.parent = parent
+        self.tag = tag
+        self.funcs: list[Func] = []
+        self.children: dict[str, _TagNode] = {}
+
+    def add_node(self, word: str, sep: str) -> _TagNode:
+        tag = f"{self.tag}{sep}{word}" if self.tag else word
+        child = self.children[word] = _TagNode(self, tag)
+        return child
+
+    def add_func(self, func: Func) -> None:
+        self.funcs.append(func)
+
+    def add_tag(self, func: Func) -> None:
+        if self.tag:
+            func.tags.append(self.tag)
+
+    def retroactively_add_tags(self) -> None:
+        to_visit = [self]
+        while to_visit:
+            node = to_visit.pop()
+            for f in node.funcs:
+                self.add_tag(f)
+            to_visit.extend(node.children.values())

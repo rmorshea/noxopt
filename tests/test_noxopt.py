@@ -163,65 +163,35 @@ def tests_error_on_conflicting_options(execute: Executor):
 
 
 def test_auto_tags_no_prefix(registry):
-    app = NoxOpt(auto_tag_depth=2)
+    app = NoxOpt(auto_tag=True)
 
     @app.session
-    def check_python_tests(session: Session) -> None:
+    def a_x_1(session: Session) -> None:
         ...
 
     @app.session
-    def check_python_format(session: Session) -> None:
+    def a_x_2(session: Session) -> None:
         ...
 
     @app.session
-    def check_javascript_tests(session: Session) -> None:
+    def a_y_1(session: Session) -> None:
         ...
 
     @app.session
-    def check_javascript_format(session: Session) -> None:
-        ...
-
-    assert set(registry["check-python-tests"].tags) == {"check-python", "check"}
-    assert set(registry["check-python-format"].tags) == {"check-python", "check"}
-    assert set(registry["check-javascript-tests"].tags) == {"check-javascript", "check"}
-    assert set(registry["check-javascript-format"].tags) == {
-        "check-javascript",
-        "check",
-    }
-
-
-def test_auto_tags_with_prefix(registry):
-    app = NoxOpt(auto_tag_depth=2, prefix="session-prefix")
-
-    @app.session
-    def check_python_tests(session: Session) -> None:
+    def a_y_2(session: Session) -> None:
         ...
 
     @app.session
-    def check_python_format(session: Session) -> None:
+    def b_x_1(session: Session) -> None:
         ...
 
     @app.session
-    def check_javascript_tests(session: Session) -> None:
+    def b_x_2(session: Session) -> None:
         ...
 
-    @app.session
-    def check_javascript_format(session: Session) -> None:
-        ...
-
-    assert set(registry["session-prefix-check-python-tests"].tags) == {
-        "session-prefix-check-python",
-        "session-prefix-check",
-    }
-    assert set(registry["session-prefix-check-python-format"].tags) == {
-        "session-prefix-check-python",
-        "session-prefix-check",
-    }
-    assert set(registry["session-prefix-check-javascript-tests"].tags) == {
-        "session-prefix-check-javascript",
-        "session-prefix-check",
-    }
-    assert set(registry["session-prefix-check-javascript-format"].tags) == {
-        "session-prefix-check-javascript",
-        "session-prefix-check",
-    }
+    assert set(registry["a-x-1"].tags) == {"a", "a-x"}
+    assert set(registry["a-x-2"].tags) == {"a", "a-x"}
+    assert set(registry["a-y-1"].tags) == {"a", "a-y"}
+    assert set(registry["a-y-2"].tags) == {"a", "a-y"}
+    assert set(registry["b-x-1"].tags) == {"b-x"}
+    assert set(registry["b-x-2"].tags) == {"b-x"}
