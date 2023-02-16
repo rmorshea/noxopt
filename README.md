@@ -2,7 +2,11 @@
 
 Nox sessions with options!
 
-# Basic Usage
+## Installation
+
+It's just `pip install noxopt`!
+
+## Basic Usage
 
 Define a session with typed parameters:
 
@@ -35,7 +39,7 @@ Note that all options declared with the sessions of a `NoxOpt` group must be con
 That is, if one session defined `x: int`, another session in the same group cannot
 define `x: bool` instead.
 
-# Customizing Option
+## Customizing Options
 
 This time you're going to use some [`Annotated`](https://peps.python.org/pep-0593/)
 metadata to customize your option:
@@ -111,7 +115,7 @@ def multiply_numbers(
     session.log(reduce(lambda x, y: x * y, nums, 0))
 ```
 
-# Automatic Tags
+## Automatic Tags
 
 An additional nicety of NoxOpt is that is can automatically create tags based on the
 names of your sessions using the `auto_tag_depth` parameter. The idea behind this
