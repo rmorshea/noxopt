@@ -1,23 +1,22 @@
 from __future__ import annotations
-from dataclasses import dataclass, fields, replace
 
-from inspect import signature, Parameter
 import functools
+import sys
 from argparse import ArgumentParser
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    Callable,
-    Container,
-    Sequence,
-    TypeVar,
-    get_origin,
-    get_type_hints,
-    get_args,
-    ParamSpec,
-    Concatenate,
-)
+from dataclasses import dataclass, fields, replace
+from inspect import Parameter, signature
+
+
+if sys.version_info < (3, 9):
+    from typing_extensions import Annotated, get_args, get_type_hints
+else:
+    from typing import Annotated, get_args, get_type_hints
+if sys.version_info < (3, 10):
+    from typing_extensions import Concatenate, ParamSpec, get_origin
+else:
+    from typing import ParamSpec, Concatenate, get_origin
+
+from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, TypeVar
 
 import nox
 from nox.sessions import Session
