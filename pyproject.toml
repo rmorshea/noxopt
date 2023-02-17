@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noxopt"
-version = "0.0.6"
+version = "0.0.7"
 description = "Nox sessions with options"
 authors = [
     {name = "Ryan Morshead", email = "ryan.morshead@gmail.com"},
