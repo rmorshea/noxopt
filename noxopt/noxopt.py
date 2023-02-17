@@ -319,8 +319,11 @@ class _AutoTag:
     - `a`
     - `a-x`
     - `a-y`
-    - `b`
     - `b-x`
+
+    This isn't always perfect since technically, we could subtitute the tag `b-x` for
+    just `b` since the shorted common string between `b-x-1` and `b-x-2` is `b`. But
+    it works most of the time, and it makes the algorithm a bit easier to reason about.
     """
 
     def __init__(self, sep: str = "-"):
