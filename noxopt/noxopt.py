@@ -75,7 +75,7 @@ class NoxOpt:
         auto_tag: bool = False,
         where: dict[str, Any] | None = None,
     ):
-        self._parser = parser or ArgumentParser()
+        self._parser = parser or ArgumentParser("")
         self._options_by_flags: dict[str, Option] = {}
         self._auto_tag = _AutoTag() if auto_tag else None
         self._setup_funcs: DefaultDict[
@@ -104,8 +104,7 @@ class NoxOpt:
             session = nox.session(
                 *args,
                 name=session_name,
-                **kwargs,
-                **self._common_session_kwargs,
+                **{**self._common_session_kwargs, **kwargs},
             )(wrapper)
             if self._auto_tag:
                 self._auto_tag.add_func(session_name, session)
