@@ -51,7 +51,7 @@ def test_session_with_simple_option(execute: Executor):
 
     number_value = None
 
-    @app.session(venv_backend="none")
+    @app.session
     def my_session(session: Session, number: int = 0) -> None:
         nonlocal number_value
         number_value = number
@@ -67,7 +67,7 @@ def test_session_with_annotated_option(execute: Executor):
 
     number_value = None
 
-    @app.session(venv_backend="none")
+    @app.session
     def my_session(
         session: Session,
         # double the given number
@@ -85,7 +85,7 @@ def test_all_options_are_flags(execute: Executor):
 
     with pytest.raises(ValueError, match="only supports flags"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(
             session: Session, number: Annotated[int, Option(flags=["not-a-flag"])] = 0
         ) -> None:
@@ -97,7 +97,7 @@ def test_expect_metadata_to_be_option(execute: Executor):
 
     with pytest.raises(ValueError, match="metadata must be an Option"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(
             session: Session, number: Annotated[int, "not an option"] = 0
         ) -> None:
@@ -109,13 +109,13 @@ def test_only_kwarg_params(execute: Executor):
 
     with pytest.raises(TypeError, match="Found non-keyword session parameters"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(session: Session, *args: int) -> None:
             ...
 
     with pytest.raises(TypeError, match="Found non-keyword session parameters"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(session: Session, **args: int) -> None:
             ...
 
@@ -125,7 +125,7 @@ def test_no_extra_metadata(execute: Executor):
 
     with pytest.raises(ValueError, match="has extra metadata"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(
             session: Session, number: Annotated[int, Option(), "extra-junk"] = 0
         ) -> None:
@@ -135,17 +135,17 @@ def test_no_extra_metadata(execute: Executor):
 def tests_error_on_conflicting_options(execute: Executor):
     app = NoxOpt()
 
-    @app.session(venv_backend="none")
+    @app.session
     def my_session(session: Session, some_option: int = 0) -> None:
         ...
 
     with pytest.raises(ValueError, match="Conflicting session options"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(session: Session, some_option: bool = 0) -> None:
             ...
 
-    @app.session(venv_backend="none")
+    @app.session
     def my_session(
         session: Session,
         some_option: Annotated[int, Option(type=int)] = 0,
@@ -154,7 +154,7 @@ def tests_error_on_conflicting_options(execute: Executor):
 
     with pytest.raises(ValueError, match="Conflicting session options"):
 
-        @app.session(venv_backend="none")
+        @app.session
         def my_session(
             session: Session,
             some_option: Annotated[int, Option(type=int, help="different")] = 0,
@@ -195,3 +195,65 @@ def test_auto_tags_no_prefix(registry):
     assert set(registry["a-y-2"].tags) == {"a", "a-y"}
     assert set(registry["b-x-1"].tags) == {"b-x"}
     assert set(registry["b-x-2"].tags) == {"b-x"}
+
+
+def test_setup_funcs(execute: Executor):
+    app = NoxOpt(auto_tag=True)
+
+    calls = []
+
+    @app.setup
+    def setup_app(session: Session):
+        calls.append("setup-all")
+
+    @app.setup("session-x")
+    def setup_x(session: Session, setup_param: str = "not-set") -> None:
+        assert setup_param == "is-set"
+        calls.append("setup-x")
+
+    @app.setup("session-y")
+    def setup_y(session: Session, setup_param: str = "not-set") -> None:
+        assert setup_param == "is-set"
+        calls.append("setup-y")
+
+    @app.session
+    def session_x_1(session: Session, session_param: bool = False):
+        assert session_param
+        calls.append("session-x-1")
+
+    @app.session
+    def session_x_2(session: Session, session_param: bool = False):
+        assert session_param
+        calls.append("session-x-2")
+
+    @app.session
+    def session_y_1(session: Session, session_param: bool = False):
+        assert session_param
+        calls.append("session-y-1")
+
+    @app.session
+    def session_y_2(session: Session, session_param: bool = False):
+        assert session_param
+        calls.append("session-y-2")
+
+    execute(tag="session-x", posargs=["--setup-param", "is-set", "--session-param"])
+    assert calls == [
+        "setup-all",
+        "setup-x",
+        "session-x-1",
+        "setup-all",
+        "setup-x",
+        "session-x-2",
+    ]
+
+    calls.clear()
+
+    execute(tag="session-y", posargs=["--setup-param", "is-set", "--session-param"])
+    assert calls == [
+        "setup-all",
+        "setup-y",
+        "session-y-1",
+        "setup-all",
+        "setup-y",
+        "session-y-2",
+    ]

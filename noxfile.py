@@ -12,8 +12,8 @@ import nox
 ROOT = Path(__file__).parent
 
 
-@nox.session(name="fix-format", tags=["fix"])
-def fix_format(session: nox.Session) -> None:
+@nox.session(name="format")
+def format(session: nox.Session) -> None:
     session.install("-r", "requirements.txt")
     session.run("black", ".")
     session.run("isort", ".")
@@ -21,7 +21,7 @@ def fix_format(session: nox.Session) -> None:
 
 @nox.session(name="check-tests", tags=["check"])
 def check_tests(session: nox.Session) -> None:
-    session.install("-r", "requirements.txt")
+    session.install("-r", "requirements/check-tests.txt")
 
     args = ["pytest", *session.posargs]
 
@@ -42,7 +42,7 @@ def check_tests(session: nox.Session) -> None:
 
 @nox.session(name="check-format", tags=["check"])
 def check_format(session: nox.Session) -> None:
-    session.install("-r", "requirements.txt")
+    session.install("-r", "requirements/check-format.txt")
     session.run("flake8", "noxopt", "tests")
     session.run("black", ".", "--check")
     session.run("isort", ".", "--check-only")
@@ -50,7 +50,7 @@ def check_format(session: nox.Session) -> None:
 
 @nox.session(name="check-types", tags=["check"])
 def check_types(session: nox.Session) -> None:
-    session.install("-r", "requirements.txt")
+    session.install("-r", "requirements/check-types.txt")
     session.run("mypy", "--version")
     session.run("mypy", "--show-error-codes", "--strict", "noxopt")
     session.run("mypy", "noxfile.py")
