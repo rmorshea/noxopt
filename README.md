@@ -109,6 +109,61 @@ def multiply_numbers(session: Session, nums: Integers) -> None:
     session.log(reduce(lambda x, y: x * y, nums, 0))
 ```
 
+## Common Setup
+
+NoxOpt allows you to add logic that runs before sessions in a group.
+
+```python
+from noxopt import NoxOpt, Session
+
+nox = NoxOpt()
+
+@nox.setup
+def setup(session: Session) -> None:
+    ...  # your setup logic here
+
+@nox.session
+def my_session(session: Sesssion) -> None:
+    ... # your session here
+```
+
+Here, the `setup` function will run before all sessions in the `NoxOpt` group. To
+run setup only on specific sessions in a group you specify a prefix. Any sessions
+whose names begin with that prefix will share the same setup procedure:
+
+```python
+from noxopt import NoxOpt, Session
+
+nox = NoxOpt()
+
+@nox.setup("python")
+def setup_python(session: Session) -> None:
+    ...  # your setup logic here
+
+@nox.session
+def python_tests(session: Session) -> None:
+    ...
+
+@nox.session
+def javascript_tests(session: Session) -> None:
+    ...
+```
+
+Here, `setup_python` will only run when any session whose name begins with `python` is
+executed. In this case that would only apply to the `python-tests` session.
+
+You can also declare common settings for all sessions within a group by passing
+`NoxOpt(where=dict(...))`. This parameter accepts a dictionary that will be passed to
+the `nox.session` decorator as keyword arguments when constructing each session. So, if
+you wanted to run all sessions in a group with Python 3.10 and 3.11 you would configure:
+
+```python
+from noxopt import NoxOpt
+
+# run all sessions in this group using Python 3.10 and 3.11
+nox = NoxOpt(where=dict(python=["3.10", "3.11"]))
+```
+
 ## Automatic Tags
 
 An additional nicety of NoxOpt is that is can automatically create tags based on the

@@ -1,18 +1,3 @@
-# tests
-coverage
-mypy
-pytest
-
-# release
-wheel
-twine
-build
-
-# style
-black
-flake8
-flake8
-flake8-pyproject
-flake8-print
-flake8-tidy-imports
-isort
+-r requirements/check-format.txt
+-r requirements/check-tests.txt
+-r requirements/check-types.txt
