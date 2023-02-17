@@ -3,7 +3,6 @@ from pathlib import Path
 from shutil import rmtree
 
 import nox
-import noxopt
 
 ROOT = Path(__file__).parent
 
