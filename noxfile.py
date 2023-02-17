@@ -1,13 +1,9 @@
-"""Developer Utilities
-
-Note:
-    We avoid using NoxOpt here just so dev commands will work even if there are bugs.
-"""
+import sys
 from pathlib import Path
 from shutil import rmtree
 
 import nox
-
+import noxopt
 
 ROOT = Path(__file__).parent
 
@@ -68,3 +64,16 @@ def build(session: nox.Session) -> None:
 def release(session: nox.Session) -> None:
     session.install("twine")
     session.run("twine", "upload", "dist/*")
+
+
+try:
+    sys.modules["noxopt"]
+except KeyError:
+    pass
+else:
+    print(
+        f"NoxOpt was imported somewhere in: {__file__}\n"
+        "This must be avoided in order to keep all Nox sessions functional "
+        "even when NoxOpt itself is in a broken state during development."
+    )
+    sys.exit(1)
