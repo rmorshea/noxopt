@@ -4,7 +4,8 @@ import sys
 
 from nox.sessions import Session
 
-from noxopt.noxopt import NoxOpt, Option
+from noxopt._option import Option
+from noxopt.noxopt import NoxOpt
 
 
 if sys.version_info < (3, 10):  # pragma: no cover

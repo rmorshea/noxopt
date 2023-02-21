@@ -62,10 +62,10 @@ class Option:
 
 
 def _create_option(name: str, default: Any, annotation: Any) -> Option:
-    if get_origin(annotation) is not Annotated:
-        anno_args = (annotation, Option())
-    else:
+    if get_origin(annotation) is Annotated:
         anno_args = get_args(annotation)
+    else:
+        anno_args = (annotation, Option())
 
     opt_type, opt, *extra_args = anno_args
 
