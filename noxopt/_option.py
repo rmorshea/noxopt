@@ -8,9 +8,15 @@ from typing import Any, Callable, Container, Sequence, cast
 
 
 if sys.version_info < (3, 10):  # pragma: no cover
-    from typing_extensions import Annotated, get_args, get_origin, get_type_hints
+    from typing_extensions import (
+        Annotated,
+        get_args,
+        get_origin,
+        get_type_hints,
+        TypedDict,
+    )
 else:
-    from typing import Annotated, get_args, get_origin, get_type_hints
+    from typing import Annotated, get_args, get_origin, get_type_hints, TypedDict
 
 
 UNDEFINED = cast(Any, type("Undefined", (), {"__repr__": lambda self: "UNDEFINED"})())
@@ -19,7 +25,9 @@ UNDEFINED = cast(Any, type("Undefined", (), {"__repr__": lambda self: "UNDEFINED
 def get_function_options(func: Callable[..., Any]) -> dict[str, Option]:
     return {
         k: _create_option(k, d, a)
-        for k, (d, a) in _get_function_defaults_and_annotations(func).items()
+        for k, (d, a) in _get_function_defaults_and_annotations(
+            _get_maybe_wrapped_func(func)
+        ).items()
     }
 
 
@@ -102,13 +110,18 @@ def _create_option(name: str, default: Any, annotation: Any) -> Option:
 
 
 def _get_function_defaults_and_annotations(
-    func: Callable[..., Any]
+    maybe_wrapped: _MaybeWrappedFunc,
 ) -> dict[str, tuple[Parameter, Any]]:
-    parameters = list(signature(func).parameters.values())
-    annotations = get_type_hints(func, include_extras=True)
+    parameters = list(signature(maybe_wrapped["func"]).parameters.values())
+    annotations = get_type_hints(maybe_wrapped["func"], include_extras=True)
 
-    # delete first positional argument
-    del parameters[0]
+    parameters = [
+        p
+        # skip first positional arg (the nox session obj) + any partial positional args
+        for p in parameters[maybe_wrapped["skip_pos_args_num"] + 1 :]
+        # skip any partial kwargs
+        if p.name not in maybe_wrapped["skip_kwarg_names"]
+    ]
 
     kw_param_kinds = (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
     non_kws = [p.name for p in parameters if p.kind not in kw_param_kinds]
@@ -122,3 +135,26 @@ def _get_function_defaults_and_annotations(
         )
         for param in parameters
     }
+
+
+def _get_maybe_wrapped_func(func: Callable[..., Any]) -> Callable[..., Any]:
+    skip_pos_args_num = len(getattr(func, "args", ()))
+    skip_kwarg_names = set(getattr(func, "kwargs", {}))
+    while True:
+        maybed_func = (
+            # functools.wraps does this
+            getattr(func, "__wrapped__", None)
+            # functools.partial does this
+            or getattr(func, "func", None)
+        )
+        if callable(maybed_func):
+            func = maybed_func
+        else:
+            break
+    return _MaybeWrappedFunc(func, skip_pos_args_num, skip_kwarg_names)
+
+
+class _MaybeWrappedFunc(TypedDict):
+    func: Callable[..., Any]
+    skip_pos_args_num: int
+    skip_kwarg_names: set[str]
