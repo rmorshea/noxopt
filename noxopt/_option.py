@@ -8,27 +8,32 @@ from typing import Any, Callable, Container, Sequence, cast
 
 
 if sys.version_info < (3, 10):  # pragma: no cover
-    from typing_extensions import (
-        Annotated,
-        get_args,
-        get_origin,
-        get_type_hints,
-        TypedDict,
-    )
+    from typing_extensions import Annotated, get_args, get_origin, get_type_hints
 else:
-    from typing import Annotated, get_args, get_origin, get_type_hints, TypedDict
+    from typing import Annotated, get_args, get_origin, get_type_hints
 
 
 UNDEFINED = cast(Any, type("Undefined", (), {"__repr__": lambda self: "UNDEFINED"})())
 
 
-def get_function_options(func: Callable[..., Any]) -> dict[str, Option]:
-    return {
-        k: _create_option(k, d, a)
-        for k, (d, a) in _get_function_defaults_and_annotations(
-            _get_maybe_wrapped_func(func)
-        ).items()
-    }
+def get_function_options(
+    func: Callable[..., Any], explicit_options: bool | None = None
+) -> dict[str, Option]:
+    options: dict[str, Option] = {}
+
+    explicit_options = (
+        explicit_options
+        # we require parametrized sessions to have explicitely declared options
+        or bool(getattr(func, "parametrize", None))
+    )
+
+    func = _get_wrapped_func(func)
+    for k, (d, a) in _get_function_defaults_and_annotations(func).items():
+        opt = _create_option(k, d, a, explicit_options)
+        if opt is not None:
+            options[k] = opt
+
+    return options
 
 
 @dataclass
@@ -69,19 +74,27 @@ class Option:
         parser.add_argument(*flags, **kwargs)
 
 
-def _create_option(name: str, default: Any, annotation: Any) -> Option:
+def _create_option(
+    name: str, default: Any, annotation: Any, explicit_options: bool
+) -> Option | None:
     if get_origin(annotation) is Annotated:
         anno_args = get_args(annotation)
+    elif explicit_options:
+        return None
     else:
         anno_args = (annotation, Option())
 
+    opt: Option | None
     opt_type, opt, *extra_args = anno_args
-
-    if not isinstance(opt, Option):
-        raise ValueError(f"{annotation} metadata must be an Option")
 
     if extra_args:
         raise ValueError(f"{annotation} has extra metadata {extra_args}")
+
+    if opt is None:
+        return None
+
+    if not isinstance(opt, Option):
+        raise ValueError(f"{annotation} metadata must be an Option")
 
     if opt.type is UNDEFINED:
         if not callable(opt_type):
@@ -110,23 +123,22 @@ def _create_option(name: str, default: Any, annotation: Any) -> Option:
 
 
 def _get_function_defaults_and_annotations(
-    maybe_wrapped: _MaybeWrappedFunc,
+    func: Callable[..., Any]
 ) -> dict[str, tuple[Parameter, Any]]:
-    parameters = list(signature(maybe_wrapped["func"]).parameters.values())
-    annotations = get_type_hints(maybe_wrapped["func"], include_extras=True)
+    parameters = list(signature(func).parameters.values())
+    annotations = get_type_hints(func, include_extras=True)
 
-    parameters = [
-        p
-        # skip first positional arg (the nox session obj) + any partial positional args
-        for p in parameters[maybe_wrapped["skip_pos_args_num"] + 1 :]
-        # skip any partial kwargs
-        if p.name not in maybe_wrapped["skip_kwarg_names"]
-    ]
+    # skip first positional arg (the nox session obj)
+    del parameters[0]
 
     kw_param_kinds = (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
     non_kws = [p.name for p in parameters if p.kind not in kw_param_kinds]
     if non_kws:
-        raise TypeError(f"Found non-keyword session parameters {', '.join(non_kws)}")
+        raise TypeError(
+            f"Found non-keyword session parameters {', '.join(non_kws)} in {func}. If "
+            "you used a decorator, it may not have preserved information about the "
+            "original function using functools.wraps()."
+        )
 
     return {
         param.name: (
@@ -137,24 +149,9 @@ def _get_function_defaults_and_annotations(
     }
 
 
-def _get_maybe_wrapped_func(func: Callable[..., Any]) -> Callable[..., Any]:
-    skip_pos_args_num = len(getattr(func, "args", ()))
-    skip_kwarg_names = set(getattr(func, "kwargs", {}))
-    while True:
-        maybed_func = (
-            # functools.wraps does this
-            getattr(func, "__wrapped__", None)
-            # functools.partial does this
-            or getattr(func, "func", None)
-        )
-        if callable(maybed_func):
-            func = maybed_func
-        else:
-            break
-    return _MaybeWrappedFunc(func, skip_pos_args_num, skip_kwarg_names)
-
-
-class _MaybeWrappedFunc(TypedDict):
-    func: Callable[..., Any]
-    skip_pos_args_num: int
-    skip_kwarg_names: set[str]
+def _get_wrapped_func(given_func: Callable[..., Any]) -> Callable[..., Any]:
+    maybe_wrapped: Callable[..., Any] | None = given_func
+    while maybe_wrapped is not None:
+        func = maybe_wrapped
+        maybe_wrapped = getattr(func, "__wrapped__", None)
+    return func
