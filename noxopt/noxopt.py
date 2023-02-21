@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import sys
 from argparse import ArgumentParser
 from typing import TYPE_CHECKING, Any, Callable, DefaultDict, TypeVar, overload
 

@@ -45,7 +45,7 @@ This time you're going to use some [`Annotated`](https://peps.python.org/pep-059
 metadata to customize your option:
 
 ```python
-from typing import Annotated, TypeAlias
+from typing import Annotated
 from noxopt import NoxOpt, Option, Session
 
 nox = NoxOpt()
@@ -192,11 +192,11 @@ def check_javascript_format(session: Session) -> None:
     ...
 ```
 
-NoxOpt will generate the following tags:
+NoxOpt will generate the following tags which, if run with `nox -t <tag>` will execute...
 
-- `check` - run sessions begining with `check`
-- `check-python` - run sessions begining with `check-python`
-- `check-javascript`- run sessions begining with `check-javascript`
+- `check` - all sessions
+- `check-python` - only `check-python-tests` and `check-python-format`
+- `check-javascript`- only `check-javascript-tests` and `check-javascript-format`
 
-It does this by splitting every session name in the group on `-` characters and creating
-tags based on their common prefixes.
+It does this by splitting every session name in the `NoxOpt` group on `-` characters
+a tag where there are at least two or more sessions with a common prefix.
