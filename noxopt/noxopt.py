@@ -15,13 +15,15 @@ from noxopt._tagging import AutoTag
 if TYPE_CHECKING:
     from typing import Concatenate, ParamSpec
 
+    AnyFunc = Callable[..., Any]
+
     F = TypeVar("F", bound=Callable[..., None])
     P = ParamSpec("P")
     R = TypeVar("R")
 
     def copy_method_signature(
         func: Callable[P, R]
-    ) -> Callable[[Callable[..., Any]], Callable[Concatenate[Any, P], R]]:
+    ) -> Callable[[AnyFunc], Callable[Concatenate[Any, P], R]]:
         ...
 
 else:
@@ -38,10 +40,12 @@ class NoxOpt:
         parser: ArgumentParser | None = None,
         auto_tag: bool = False,
         where: dict[str, Any] | None = None,
+        explicit_options: bool = False,
     ):
         self._parser = parser or ArgumentParser("")
         self._options_by_flags: dict[str, Option] = {}
         self._auto_tag = AutoTag() if auto_tag else None
+        self._explicit_options = explicit_options
         self._setup_funcs: DefaultDict[
             str, list[Callable[[Session], None]]
         ] = DefaultDict(list)
@@ -61,9 +65,12 @@ class NoxOpt:
 
         def decorator(main_func: Any) -> Any:
             session_name = name or main_func.__name__.replace("_", "-")
-            wrapper = self._create_setup_wrapper(
-                session_name,
-                self._create_parser_wrapper(main_func),
+            wrapper = _copy_nox_parametrize(
+                main_func,
+                self._create_setup_wrapper(
+                    session_name,
+                    self._create_parser_wrapper(main_func),
+                ),
             )
             session = nox.session(
                 *args,
@@ -81,7 +88,7 @@ class NoxOpt:
         ...
 
     @overload
-    def setup(self, *names: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def setup(self, *names: str) -> Callable[[AnyFunc], AnyFunc]:
         ...
 
     def setup(self, *args: Any) -> Any:
@@ -102,28 +109,32 @@ class NoxOpt:
 
         return decorator if func is None else decorator(func)
 
-    def _create_setup_wrapper(
-        self, name: str, func: Callable[..., Any]
-    ) -> Callable[..., Any]:
-        def wrapper(session: Session) -> None:
+    def _create_setup_wrapper(self, name: str, func: AnyFunc) -> AnyFunc:
+        @functools.wraps(func)
+        def wrapper(session: Session, *args: Any, **kwargs: Any) -> None:
             for prefix, setup_funcs in self._setup_funcs.items():
                 if name.startswith(prefix):
                     for f in setup_funcs:
                         f(session)
-            func(session)
+            func(session, *args, **kwargs)
 
         return wrapper
 
-    def _create_parser_wrapper(self, func: Callable[..., Any]) -> Callable[..., Any]:
+    def _create_parser_wrapper(self, func: AnyFunc) -> AnyFunc:
         own_params: set[str] = set()
-        for name, option in get_function_options(func).items():
+        for name, option in get_function_options(func, self._explicit_options).items():
             own_params.add(name)
             self._add_option_to_parser(option)
 
         @functools.wraps(func)
-        def wrapper(session: Session) -> None:
+        def wrapper(session: Session, *args: Any, **kwargs: Any) -> None:
             args_dict = self._parser.parse_args(session.posargs).__dict__
-            func(session, **{k: v for k, v in args_dict.items() if k in own_params})
+            func(
+                session,
+                *args,
+                **kwargs,
+                **{k: v for k, v in args_dict.items() if k in own_params},
+            )
 
         return wrapper
 
@@ -145,3 +156,10 @@ class NoxOpt:
 
         if not already_exists:
             option.add_argument_to_parser(self._parser)
+
+
+def _copy_nox_parametrize(func: AnyFunc, wrapper: AnyFunc) -> Callable[[Any], AnyFunc]:
+    # nox.parametrize adds this attribbute
+    if hasattr(func, "parametrize"):
+        wrapper.parametrize = func.parametrize  # type: ignore[attr-defined]
+    return wrapper

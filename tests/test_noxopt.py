@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 from contextlib import ExitStack
+from functools import wraps
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
+from nox import parametrize
 from nox._decorators import Func
 from nox._options import options as nox_options
 from nox.manifest import Manifest
@@ -49,7 +51,10 @@ def execute(
         prints: str | re.Pattern | None = None,
         logs: str | re.Pattern | None = None,
     ) -> None:
-        manifest = Manifest(registry, nox_options.namespace(posargs=posargs))
+        manifest = Manifest(
+            {k: v for k, v in registry.items() if k == session or tag in v.tags},
+            nox_options.namespace(posargs=posargs),
+        )
 
         if raises:
             if isinstance(raises, tuple):
@@ -62,13 +67,11 @@ def execute(
         else:
             etype = epat = None
 
-        to_exec = [session] if session else []
-        to_exec.extend(k for k, v in registry.items() if tag in v.tags)
-        for func_name in to_exec:
-            with ExitStack() as context:
-                if etype and epat:
-                    context.enter_context(pytest.raises(etype, match=epat))
-                manifest[func_name].execute()
+        with ExitStack() as context:
+            if etype and epat:
+                context.enter_context(pytest.raises(etype, match=epat))
+            for runner in manifest:
+                runner.execute()
 
         if prints:
             if not isinstance(prints, re.Pattern):
@@ -332,3 +335,42 @@ def test_required_argument(execute: Executor, caplog: pytest.LogCaptureFixture):
         posargs=["--required", "expected"],
         logs="AssertionError",
     )
+
+
+def test_functools_wraps(execute: Executor) -> None:
+    group = NoxOpt()
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> None:
+            func(*args, extra_option=True, **kwargs)
+
+        return wrapper
+
+    @group.session
+    @decorator
+    def my_session(
+        session: Session,
+        my_option: bool = False,
+        # explicitely declare this is not a CLI option
+        extra_option: Annotated[bool, None] = False,
+    ):
+        assert my_option
+        assert extra_option
+
+    execute("my-session", posargs=["--my-option"])
+
+
+def test_nox_parametrize(execute: Executor) -> None:
+    group = NoxOpt()
+
+    calls = []
+
+    @group.session
+    @parametrize("num", [1, 2, 3])
+    def my_session(session: Session, num: int, mult: Annotated[int, Option()]) -> None:
+        calls.append(num * mult)
+
+    execute("my-session", posargs=["--mult", "2"])
+
+    assert calls == [2, 4, 6]

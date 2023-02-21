@@ -13,9 +13,9 @@ Define a session with typed parameters:
 ```python
 from noxopt import NoxOpt, Session
 
-nox = NoxOpt()
+group = NoxOpt()
 
-@nox.session
+@group.session
 def add_numbers(session: Session, x: int, y: int) -> None:
     session.log(x + y)
 ```
@@ -48,9 +48,9 @@ metadata to customize your option:
 from typing import Annotated
 from noxopt import NoxOpt, Option, Session
 
-nox = NoxOpt()
+group = NoxOpt()
 
-@nox.session
+@group.session
 def sum_numbers(
     session: Session,
     nums: Annotated[list[int], Option(nargs="*", type=int)],
@@ -96,17 +96,66 @@ from functools import reduce
 from typing import Annotated, TypeAlias
 from noxopt import NoxOpt, Option, Session
 
-nox = NoxOpt()
+group = NoxOpt()
 
 Integers = Annotated[list[int], Option(nargs="*", type=int)]
 
-@nox.session
+@group.session
 def sum_numbers(session: Session, nums: Integers) -> None:
     session.log(sum(nums))
 
-@nox.session
+@group.session
 def multiply_numbers(session: Session, nums: Integers) -> None:
     session.log(reduce(lambda x, y: x * y, nums, 0))
+```
+
+## Parametrizing Sessions
+
+If want to use the
+[`@nox.parametrize`](https://nox.thea.codes/en/stable/config.html#parametrizing-sessions)
+decorator with NoxOpt you'll need to explicitely declare which parameters should be
+treated as command line options. This is done by annotating them with
+`Annotated[YourType, Option()]`:
+
+```python
+from typing import Annotated
+from nox import Session, parametrize
+from noxopt import NoxOpt, Option
+
+group = NoxOpt()
+
+@group.session
+@parametrize("num", [1, 2, 3])
+def log_nums(session: Session, num: int, mult: Annotated[int, Option()]) -> None:
+    session.log(num * mult)
+
+```
+
+You could now run:
+
+```bash
+nox -s multiply-nums -- --mult 2
+```
+
+And see the output:
+
+```
+nox > Running session multiply-nums(num=1)
+nox > Creating virtual environment (virtualenv) using python in .nox/multiply-nums-num-1
+nox > 2
+nox > Session multiply-nums(num=1) was successful.
+nox > Running session multiply-nums(num=2)
+nox > Creating virtual environment (virtualenv) using python in .nox/multiply-nums-num-2
+nox > 4
+nox > Session multiply-nums(num=2) was successful.
+nox > Running session multiply-nums(num=3)
+nox > Creating virtual environment (virtualenv) using python in .nox/multiply-nums-num-3
+nox > 6
+nox > Session multiply-nums(num=3) was successful.
+nox > Ran multiple sessions:
+nox > * multiply-nums(num=1): success
+nox > * multiply-nums(num=2): success
+nox > * multiply-nums(num=3): success
 ```
 
 ## Common Setup
@@ -116,13 +165,13 @@ NoxOpt allows you to add logic that runs before sessions in a group.
 ```python
 from noxopt import NoxOpt, Session
 
-nox = NoxOpt()
+group = NoxOpt()
 
 @nox.setup
 def setup(session: Session) -> None:
     ...  # your setup logic here
 
-@nox.session
+@group.session
 def my_session(session: Sesssion) -> None:
     ... # your session here
 ```
@@ -134,17 +183,17 @@ whose names begin with that prefix will share the same setup procedure:
 ```python
 from noxopt import NoxOpt, Session
 
-nox = NoxOpt()
+group = NoxOpt()
 
 @nox.setup("python")
 def setup_python(session: Session) -> None:
     ...  # your setup logic here
 
-@nox.session
+@group.session
 def python_tests(session: Session) -> None:
     ...
 
-@nox.session
+@group.session
 def javascript_tests(session: Session) -> None:
     ...
 ```
@@ -161,7 +210,7 @@ you wanted to run all sessions in a group with Python 3.10 and 3.11 you would co
 from noxopt import NoxOpt
 
 # run all sessions in this group using Python 3.10 and 3.11
-nox = NoxOpt(where=dict(python=["3.10", "3.11"]))
+group = NoxOpt(where=dict(python=["3.10", "3.11"]))
 ```
 
 ## Automatic Tags
@@ -173,21 +222,21 @@ parameter is that if you have a set of sessions with a common naming scheme like
 ```python
 from noxopt import NoxOpt, Session
 
-nox = NoxOpt(auto_tag=True)
+group = NoxOpt(auto_tag=True)
 
-@nox.session
+@group.session
 def check_python_tests(session: Session) -> None:
     ...
 
-@nox.session
+@group.session
 def check_python_format(session: Session) -> None:
     ...
 
-@nox.session
+@group.session
 def check_javascript_tests(session: Session) -> None:
     ...
 
-@nox.session
+@group.session
 def check_javascript_format(session: Session) -> None:
     ...
 ```
