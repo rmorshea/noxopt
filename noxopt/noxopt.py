@@ -8,8 +8,8 @@ import nox
 from nox.sessions import Session
 
 from noxopt import _config
-from noxopt._tagging import AutoTag
 from noxopt._option import Option, get_function_options
+from noxopt._tagging import AutoTag
 
 
 if TYPE_CHECKING:
