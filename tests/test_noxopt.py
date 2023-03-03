@@ -10,6 +10,7 @@ from nox import parametrize
 from nox._decorators import Func
 from nox._options import options as nox_options
 from nox.manifest import Manifest
+from nox.sessions import Status
 
 from noxopt import Annotated, NoxOpt, Option, Session
 
@@ -50,6 +51,8 @@ def execute(
         raises: Exception | tuple[type[Exception], str | re.Pattern] | None = None,
         prints: str | re.Pattern | None = None,
         logs: str | re.Pattern | None = None,
+        status: Status | str = Status.SUCCESS,
+        reason: str | re.Patten | None = None,
     ) -> None:
         manifest = Manifest(
             {k: v for k, v in registry.items() if k == session or tag in v.tags},
@@ -57,21 +60,32 @@ def execute(
         )
 
         if raises:
+            epat: str | re.Pattern[str] | None
             if isinstance(raises, tuple):
                 etype, epat = raises
-            else:
+            elif isinstance(raises, BaseException):
                 etype, epat = type(raises), str(raises)
-
-            if not isinstance(epat, re.Pattern):
-                epat = re.compile(epat)
+            else:
+                raise TypeError("Expected exception or (exception, pattern)")
         else:
             etype = epat = None
+
+        if isinstance(reason, str):
+            reason_pat = re.compile(reason)
+        else:
+            reason_pat = reason
+
+        if isinstance(status, str):
+            status = Status[status]
 
         with ExitStack() as context:
             if etype and epat:
                 context.enter_context(pytest.raises(etype, match=epat))
             for runner in manifest:
-                runner.execute()
+                result = runner.execute()
+                assert result.status == status
+                if reason_pat:
+                    assert reason_pat.match(result.reason)
 
         if prints:
             if not isinstance(prints, re.Pattern):
@@ -320,20 +334,19 @@ def test_required_argument(execute: Executor, caplog: pytest.LogCaptureFixture):
     execute(
         "session-with-required",
         posargs=[],
-        raises=SystemExit(2),
-        prints=r"the following arguments are required: --required",
+        status=Status.ABORTED,
+        reason=r"Session .* is missing required options",
     )
 
     execute(
         "session-with-required",
         posargs=["--required", "wrong"],
-        logs="AssertionError",
+        status=Status.FAILED,
     )
 
     execute(
         "session-with-required",
         posargs=["--required", "expected"],
-        logs="AssertionError",
     )
 
 

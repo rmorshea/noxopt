@@ -8,7 +8,7 @@ import nox
 from nox.sessions import Session
 
 from noxopt import _config
-from noxopt._option import Option, get_function_options
+from noxopt._option import Option, get_function_options, UNDEFINED
 from noxopt._tagging import AutoTag
 
 
@@ -122,13 +122,27 @@ class NoxOpt:
 
     def _create_parser_wrapper(self, func: AnyFunc) -> AnyFunc:
         own_params: set[str] = set()
+        required_params: dict[str, Option] = {}
         for name, option in get_function_options(func, self._explicit_options).items():
             own_params.add(name)
+            if option.default is UNDEFINED:
+                required_params[name] = option
             self._add_option_to_parser(option)
 
         @functools.wraps(func)
         def wrapper(session: Session, *args: Any, **kwargs: Any) -> None:
             args_dict = self._parser.parse_args(session.posargs).__dict__
+
+            missing_options = [
+                max(required_params[p].flags, key=len)
+                for p in required_params
+                if args_dict[p] is None
+            ]
+            if missing_options:
+                session.error(
+                    f"Session {session.name} is missing required options: {' '.join(missing_options)}"
+                )
+
             func(
                 session,
                 *args,

@@ -114,7 +114,10 @@ def _create_option(
     elif default is not UNDEFINED:
         opt = replace(opt, default=default)
     else:
-        opt = replace(opt, required=True)
+        # We don't specify options as required since that does so globally. Instead,
+        # we need to check wether missing options are required at the time we run a
+        # given session.
+        pass
 
     if opt.flags is UNDEFINED:
         opt = replace(opt, flags="--" + name.replace("_", "-"))
