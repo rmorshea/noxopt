@@ -63,6 +63,7 @@ class AutoTag:
                 node = node.children[word]
             else:
                 if len(node.children) == 1:
+                    node.add_tag(func)
                     # We're about to create a new branching point - funcs added earlier
                     # will not have this node's tag.
                     node.retroactively_add_tags()
