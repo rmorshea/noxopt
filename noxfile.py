@@ -54,8 +54,10 @@ def check_types(session: nox.Session) -> None:
 
 @nox.session
 def build(session: nox.Session) -> None:
-    rmtree(str(ROOT / "build"))
-    rmtree(str(ROOT / "dist"))
+    for dirname in ["build", "dist"]:
+        dirpath = ROOT / dirname
+        if dirpath.exists():
+            rmtree(str(dirpath))
     session.install("build", "wheel")
     session.run("python", "-m", "build", "--sdist", "--wheel", "--outdir", "dist", ".")
 
