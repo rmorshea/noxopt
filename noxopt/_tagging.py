@@ -55,16 +55,16 @@ class AutoTag:
 
         # each branching point in the graph represents a tag
         for word in name.split(self._sep):
-            if word in node.children:
+            if len(node.children) > 1:
                 # this is a branching point in the graph
-                if len(node.children) > 1:
-                    node.add_tag(func)
+                node.add_tag(func)
+
+            if word in node.children:
                 node = node.children[word]
             else:
                 if len(node.children) == 1:
-                    node.add_tag(func)
                     # We're about to create a new branching point - funcs added earlier
-                    # will not have this nodes tag.
+                    # will not have this node's tag.
                     node.retroactively_add_tags()
                 node = node.add_node(word, self._sep)
 

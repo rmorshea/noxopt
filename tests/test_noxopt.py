@@ -213,7 +213,7 @@ def tests_error_on_conflicting_options(execute: Executor):
             ...
 
 
-def test_auto_tags_no_prefix(registry):
+def test_auto_tag(registry):
     group = NoxOpt(auto_tag=True)
 
     @group.session
@@ -240,12 +240,17 @@ def test_auto_tags_no_prefix(registry):
     def b_x_2(session: Session) -> None:
         ...
 
+    @group.session
+    def b_x_3(session: Session) -> None:
+        ...
+
     assert set(registry["a-x-1"].tags) == {"a", "a-x"}
     assert set(registry["a-x-2"].tags) == {"a", "a-x"}
     assert set(registry["a-y-1"].tags) == {"a", "a-y"}
     assert set(registry["a-y-2"].tags) == {"a", "a-y"}
     assert set(registry["b-x-1"].tags) == {"b-x"}
     assert set(registry["b-x-2"].tags) == {"b-x"}
+    assert set(registry["b-x-3"].tags) == {"b-x"}
 
 
 def test_setup_funcs(execute: Executor):
